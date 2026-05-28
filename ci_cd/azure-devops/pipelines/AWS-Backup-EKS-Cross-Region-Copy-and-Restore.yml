@@ -1,0 +1,206 @@
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+variables:
+  SOURCE_AWS_REGION: us-west-1
+  DESTINATION_AWS_REGION: us-east-2
+
+  BACKUP_VAULT_NAME: eks-backup-vault
+
+  SOURCE_EKS_CLUSTER_NAME: dev-eks
+  DESTINATION_EKS_CLUSTER_NAME: new-dev-eks
+
+stages:
+- stage: CrossRegionCopyAndRestore
+  displayName: Cross Region Copy and Restore
+
+  jobs:
+  - job: EKSBackupCopyAndRestore
+    displayName: EKS Backup Copy and Restore
+
+    steps:
+
+    - task: AWSShellScript@1
+      displayName: Create Destination Vault
+      inputs:
+        awsCredentials: 'AWS-ServiceConnection'
+        regionName: '$(DESTINATION_AWS_REGION)'
+        scriptType: inline
+        inlineScript: |
+
+          set -e
+
+          if aws backup describe-backup-vault \
+            --backup-vault-name $(BACKUP_VAULT_NAME) \
+            --region $(DESTINATION_AWS_REGION) > /dev/null 2>&1
+          then
+            echo "$(BACKUP_VAULT_NAME) Vault already exists"
+          else
+            aws backup create-backup-vault \
+              --backup-vault-name $(BACKUP_VAULT_NAME) \
+              --region $(DESTINATION_AWS_REGION)
+          fi
+
+    - task: AWSShellScript@1
+      displayName: Get Latest Recovery Point
+      inputs:
+        awsCredentials: 'AWS-ServiceConnection'
+        regionName: '$(SOURCE_AWS_REGION)'
+        scriptType: inline
+        inlineScript: |
+
+          SOURCE_RECOVERY_POINT_ARN=$(aws backup list-recovery-points-by-backup-vault \
+            --backup-vault-name $(BACKUP_VAULT_NAME) \
+            --region $(SOURCE_AWS_REGION) \
+            --query "sort_by(RecoveryPoints[?Status=='COMPLETED'], &CreationDate)[-1].RecoveryPointArn" \
+            --output text)
+
+          echo "Recovery Point: $SOURCE_RECOVERY_POINT_ARN"
+
+          echo "##vso[task.setvariable variable=SOURCE_RECOVERY_POINT_ARN]$SOURCE_RECOVERY_POINT_ARN"
+
+    - task: AWSShellScript@1
+      displayName: Copy Recovery Point
+      inputs:
+        awsCredentials: 'AWS-ServiceConnection'
+        regionName: '$(SOURCE_AWS_REGION)'
+        scriptType: inline
+        inlineScript: |
+
+          DESTINATION_BACKUP_VAULT_ARN=$(aws backup describe-backup-vault \
+            --backup-vault-name $(BACKUP_VAULT_NAME) \
+            --region $(DESTINATION_AWS_REGION) \
+            --query BackupVaultArn \
+            --output text)
+
+          AWS_BACKUP_SERVICE_ROLE_ARN=$(aws iam get-role \
+            --role-name AWSBackupDefaultServiceRole \
+            --query Role.Arn \
+            --output text)
+
+          BACKUP_COPY_JOB_ID=$(aws backup start-copy-job \
+            --region $(SOURCE_AWS_REGION) \
+            --recovery-point-arn $(SOURCE_RECOVERY_POINT_ARN) \
+            --source-backup-vault-name $(BACKUP_VAULT_NAME) \
+            --destination-backup-vault-arn $DESTINATION_BACKUP_VAULT_ARN \
+            --iam-role-arn $AWS_BACKUP_SERVICE_ROLE_ARN \
+            --query CopyJobId \
+            --output text)
+
+          echo "##vso[task.setvariable variable=BACKUP_COPY_JOB_ID]$BACKUP_COPY_JOB_ID"
+
+    - task: AWSShellScript@1
+      displayName: Wait For Copy Completion
+      inputs:
+        awsCredentials: 'AWS-ServiceConnection'
+        regionName: '$(SOURCE_AWS_REGION)'
+        scriptType: inline
+        inlineScript: |
+
+          while true
+          do
+
+            STATUS=$(aws backup describe-copy-job \
+              --copy-job-id $(BACKUP_COPY_JOB_ID) \
+              --region $(SOURCE_AWS_REGION) \
+              --query CopyJob.State \
+              --output text)
+
+            echo "Current Status: $STATUS"
+
+            if [ "$STATUS" = "COMPLETED" ]; then
+              break
+            fi
+
+            if [ "$STATUS" = "FAILED" ]; then
+              exit 1
+            fi
+
+            sleep 30
+
+          done
+
+    - task: AWSShellScript@1
+      displayName: Get Copied Recovery Point
+      inputs:
+        awsCredentials: 'AWS-ServiceConnection'
+        regionName: '$(DESTINATION_AWS_REGION)'
+        scriptType: inline
+        inlineScript: |
+
+          DESTINATION_RECOVERY_POINT_ARN=$(aws backup list-recovery-points-by-backup-vault \
+            --backup-vault-name $(BACKUP_VAULT_NAME) \
+            --region $(DESTINATION_AWS_REGION) \
+            --query "sort_by(RecoveryPoints[?Status=='COMPLETED'], &CreationDate)[-1].RecoveryPointArn" \
+            --output text)
+
+          echo "##vso[task.setvariable variable=DESTINATION_RECOVERY_POINT_ARN]$DESTINATION_RECOVERY_POINT_ARN"
+
+    - task: AWSShellScript@1
+      displayName: Restore Backup
+      inputs:
+        awsCredentials: 'AWS-ServiceConnection'
+        regionName: '$(DESTINATION_AWS_REGION)'
+        scriptType: inline
+        inlineScript: |
+
+          AWS_BACKUP_SERVICE_ROLE_ARN=$(aws iam get-role \
+            --role-name AWSBackupDefaultServiceRole \
+            --query Role.Arn \
+            --output text)
+
+          cat > metadata.json <<EOF
+          {
+            "clusterName": "$(DESTINATION_EKS_CLUSTER_NAME)",
+            "newCluster": "false",
+            "restoreKubernetesManifestsOnly": "true"
+          }
+          EOF
+
+          BACKUP_RESTORE_JOB_ID=$(aws backup start-restore-job \
+            --region $(DESTINATION_AWS_REGION) \
+            --recovery-point-arn $(DESTINATION_RECOVERY_POINT_ARN) \
+            --resource-type EKS \
+            --iam-role-arn $AWS_BACKUP_SERVICE_ROLE_ARN \
+            --metadata file://metadata.json \
+            --query RestoreJobId \
+            --output text)
+
+          echo "##vso[task.setvariable variable=BACKUP_RESTORE_JOB_ID]$BACKUP_RESTORE_JOB_ID"
+
+    - task: AWSShellScript@1
+      displayName: Wait For Restore Completion
+      inputs:
+        awsCredentials: 'AWS-ServiceConnection'
+        regionName: '$(DESTINATION_AWS_REGION)'
+        scriptType: inline
+        inlineScript: |
+
+          while true
+          do
+
+            STATUS=$(aws backup describe-restore-job \
+              --restore-job-id $(BACKUP_RESTORE_JOB_ID) \
+              --region $(DESTINATION_AWS_REGION) \
+              --query Status \
+              --output text)
+
+            echo "Restore Status: $STATUS"
+
+            if [ "$STATUS" = "COMPLETED" ]; then
+              break
+            fi
+
+            if [ "$STATUS" = "FAILED" ]; then
+              aws backup describe-restore-job \
+                --restore-job-id $(BACKUP_RESTORE_JOB_ID) \
+                --region $(DESTINATION_AWS_REGION)
+
+              exit 1
+            fi
+
+            sleep 30
+
+          done

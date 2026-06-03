@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: vpn-demo
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+  namespace: vpn-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+    spec:
+      containers:
+
+      - name: app
+        image: nginx:1.29
+        ports:
+        - containerPort: 80
+
+      - name: wireguard
+        image: ghcr.io/linuxserver/wireguard:latest
+
+        securityContext:
+          privileged: true
+          capabilities:
+            add:
+              - NET_ADMIN
+              - SYS_MODULE
+
+        env:
+        - name: PUID
+          value: "1000"
+
+        - name: PGID
+          value: "1000"
+
+        - name: TZ
+          value: "UTC"
+
+        volumeMounts:
+        - name: wireguard-config
+          mountPath: /config/wg_confs
+          readOnly: true
+
+        - name: modules
+          mountPath: /lib/modules
+          readOnly: true
+
+      volumes:
+
+      - name: wireguard-config
+        secret:
+          secretName: wireguard-config
+
+      - name: modules
+        hostPath:
+          path: /lib/modules
+          type: Directory

@@ -1,0 +1,79 @@
+trigger:
+- none
+
+pool: 'Volaris Agent Pool'
+
+variables:
+  - group: Azure-Devops-Automation
+
+stages:
+- stage: Service_Connection_Creation
+  jobs:
+  - job: create_k8s_service_connection
+ 
+
+    steps:
+    - script: |
+        echo "Print All System Env Vars"
+        printenv
+      displayName: 'Print All  System Env Vars'
+
+    - task: AWSShellScript@1
+      displayName: Configure EKS Access
+      inputs:
+        awsCredentials: 'AWS-ServiceConnection'
+        regionName: '$(AWS_REGION)'
+        scriptType: inline
+        inlineScript: |
+          aws eks update-kubeconfig \
+            --name $(AWS_EKS_NAME) \
+            --region $(AWS_REGION)
+      continueOnError: false
+
+    - task: AWSShellScript@1
+      displayName: Get Cluster URL
+      inputs:
+        awsCredentials: 'AWS-ServiceConnection'
+        regionName: '$(AWS_REGION)'
+        scriptType: inline
+        inlineScript: |
+          CLUSTER_URL=$(aws eks describe-cluster \
+            --region $(AWS_REGION) \
+            --name $(AWS_EKS_NAME) \
+            --query 'cluster.endpoint' \
+            --output text)
+
+          echo "CLUSTER_URL: $CLUSTER_URL"
+          echo "##vso[task.setvariable variable=CLUSTER_URL]$CLUSTER_URL"
+      continueOnError: false
+
+    - task: KubectlInstaller@0
+      inputs:
+        kubectlVersion: latest
+
+    - script: |
+        kubectl get secret bcs-sa-token \
+          -n dev \
+          -o json > secret.json
+
+        echo "secret.json created successfully"
+        cat secret.json
+      displayName: 'Get k8s Secret json'
+      continueOnError: false
+
+    - script: |
+        echo "Install dependencies..."
+        python3 -m pip install --upgrade pip
+        python3 -m pip install --no-cache-dir -r requirements.txt
+      displayName: 'Install dependencies'
+      continueOnError: false
+
+    - script: |
+        echo "Run create_k8s_service_connection script..."
+        python3 create_k8s_service_connection.py \
+          --pat $(System.AccessToken) \
+          --secret secret.json \
+          --cluster-url $(CLUSTER_URL) \
+          --name $(K8S_SERVICE_CONNECTION_NAME)
+      displayName: 'Run create_k8s_service_connection script'
+

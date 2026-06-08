@@ -32,7 +32,7 @@ kubectl create ns yelb
 Deploy the entire application stack using the remote Kubernetes manifest configuration provided by the repository. This manifest utilizes a LoadBalancer service type to expose the frontend:
 
 ```Bash
-kubectl -n yelb apply -f [https://raw.githubusercontent.com/lamw/yelb/master/deployments/platformdeployment/Kubernetes/yaml/yelb-k8s-loadbalancer.yaml](https://raw.githubusercontent.com/lamw/yelb/master/deployments/platformdeployment/Kubernetes/yaml/yelb-k8s-loadbalancer.yaml)
+kubectl -n yelb apply -f https://raw.githubusercontent.com/lamw/yelb/master/deployments/platformdeployment/Kubernetes/yaml/yelb-k8s-loadbalancer.yaml
 ```
 
 ### 3. Verify the Deployment

@@ -10,7 +10,7 @@ resource "aws_backup_vault" "backup_vault" {
 resource "aws_backup_vault" "backup_vault_dr" {
   count         = var.enable_dr_replication ? 1 : 0
   provider      = aws.dr
-  name          = "${var.cluster_name}-backup-vault-dr"
+  name          = "${var.cluster_name}-backup-vault"
   force_destroy = true
 
   tags = {

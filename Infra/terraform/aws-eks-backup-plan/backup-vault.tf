@@ -1,20 +1,20 @@
-resource "aws_backup_vault" "eks" {
-  name = "${var.backup_vault_name}-${var.environment}"
+resource "aws_backup_vault" "backup_vault" {
+  name = "${var.cluster_name}-backup-vault"
 
   tags = {
     Environment = var.environment
-    Name        = "${var.backup_vault_name}-${var.environment}"
+    Name        = "${var.cluster_name}-backup-vault"
   }
 }
 
-resource "aws_backup_vault" "eks_dr" {
+resource "aws_backup_vault" "backup_vault_dr" {
   count         = var.enable_dr_replication ? 1 : 0
   provider      = aws.dr
-  name          = "${var.backup_vault_name}-${var.environment}-dr"
+  name          = "${var.cluster_name}-backup-vault-dr"
   force_destroy = true
 
   tags = {
     Environment = "${var.environment}-dr"
-    Name        = "${var.backup_vault_name}-${var.environment}-dr"
+    Name        = "${var.cluster_name}-backup-vault-dr"
   }
 }

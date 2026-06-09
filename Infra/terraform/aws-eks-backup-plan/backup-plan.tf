@@ -1,9 +1,9 @@
-resource "aws_backup_plan" "eks" {
-  name = "${var.backup_plan_name}-${var.environment}"
+resource "aws_backup_plan" "backup_plan" {
+  name = "${var.cluster_name}-backup-plan"
 
   rule {
-    rule_name         = "daily-backup-${var.environment}"
-    target_vault_name = aws_backup_vault.eks.name
+    rule_name         = "${var.cluster_name}-daily-backup"
+    target_vault_name = aws_backup_vault.backup_vault.name
 
     schedule = var.backup_schedule
 
@@ -14,7 +14,7 @@ resource "aws_backup_plan" "eks" {
     dynamic "copy_action" {
       for_each = var.enable_dr_replication ? [1] : []
       content {
-        destination_vault_arn = aws_backup_vault.eks_dr[0].arn
+        destination_vault_arn = aws_backup_vault.backup_vault_dr[0].arn
 
         lifecycle {
           delete_after = var.backup_retention_days
@@ -25,6 +25,6 @@ resource "aws_backup_plan" "eks" {
 
   tags = {
     Environment = var.environment
-    Name        = "${var.backup_plan_name}-${var.environment}"
+    Name        = "${var.cluster_name}-backup-plan"
   }
 }

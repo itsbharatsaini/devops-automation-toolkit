@@ -1,13 +1,9 @@
-resource "aws_backup_selection" "eks" {
-  name         = "eks-selection-${var.environment}"
-  plan_id      = aws_backup_plan.eks.id
+resource "aws_backup_selection" "backup_selection" {
+  name         = "${var.cluster_name}-backup-selection"
+  plan_id      = aws_backup_plan.backup_plan.id
   iam_role_arn = aws_iam_role.backup_role.arn
 
   resources = [
-    var.eks_clusters[var.environment].cluster_arn
+    local.cluster_arn
   ]
-
-  tags = {
-    Environment = var.environment
-  }
 }

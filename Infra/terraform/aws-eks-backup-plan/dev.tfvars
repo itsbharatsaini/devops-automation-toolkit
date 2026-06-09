@@ -1,12 +1,7 @@
 environment = "dev"
-region      = "us-west-1"
 
-eks_clusters = {
-  dev = {
-    cluster_arn = "arn:aws:eks:us-west-1:6XXXXXXXXXX9:cluster/dev-eks"
-    region      = "us-west-1"
-  }
-}
+cluster_name  = "dev-eks"
+cluster_region = "us-west-1"
 
 backup_retention_days = 30
 backup_schedule       = "cron(0 * ? * * *)"

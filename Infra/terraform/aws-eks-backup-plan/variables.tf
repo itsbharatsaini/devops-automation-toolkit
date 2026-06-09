@@ -1,36 +1,23 @@
-variable "region" {
-  type        = string
-  default     = "us-west-1"
-  description = "AWS region for the backup resources"
-}
-
 variable "environment" {
   type        = string
-  description = "Environment name (dev, staging, prod)"
-  validation {
-    condition     = contains(["dev", "staging", "prod"], var.environment)
-    error_message = "Environment must be dev, staging, or prod"
-  }
+  description = "Environment name (dev, staging, prod, etc.)"
 }
 
-variable "eks_clusters" {
-  type = map(object({
-    cluster_arn = string
-    region      = string
-  }))
-  description = "Map of EKS clusters by environment"
-}
-
-variable "backup_vault_name" {
+variable "cluster_name" {
   type        = string
-  default     = "eks-backup-vault"
-  description = "Base name for the backup vault (environment will be appended)"
+  description = "EKS cluster name to back up"
 }
 
-variable "backup_plan_name" {
+variable "cluster_region" {
   type        = string
-  default     = "eks-backup-plan"
-  description = "Base name for the backup plan (environment will be appended)"
+  description = "AWS region where the EKS cluster is running"
+}
+
+
+variable "account_id" {
+  type        = string
+  default     = ""
+  description = "AWS account ID for the EKS cluster ARN. If empty, Terraform uses the current caller identity."
 }
 
 variable "backup_retention_days" {
@@ -55,4 +42,14 @@ variable "dr_region" {
   type        = string
   default     = "us-east-1"
   description = "DR region to replicate restore points to"
+}
+
+
+############
+data "aws_caller_identity" "current" {}
+
+locals {
+  aws_account_id = var.account_id != "" ? var.account_id : data.aws_caller_identity.current.account_id
+  cluster_arn    = "arn:aws:eks:${var.cluster_region}:${local.aws_account_id}:cluster/${var.cluster_name}"
+
 }

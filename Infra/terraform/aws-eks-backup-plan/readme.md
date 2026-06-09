@@ -2,7 +2,7 @@
 
 **Overview**
 
-This Terraform configuration creates AWS Backup resources for EKS clusters per environment (dev, staging, prod). It supports optional cross-region replication of restore points for disaster recovery (DR).
+This Terraform configuration creates AWS Backup resources for EKS clusters per environment. It supports optional cross-region replication of restore points for disaster recovery (DR), and now derives the EKS cluster ARN from `cluster_name` and `cluster_region` variables.
 
 **Prerequisites**
 
@@ -24,8 +24,8 @@ Initialize and apply using the environment `.tfvars` file:
 
 ```bash
 terraform init
-terraform plan -var-file=dev.tfvars
-terraform apply -var-file=dev.tfvars
+terraform plan -var-file="dev.tfvars"
+terraform apply -var-file="dev.tfvars"
 ```
 
 Replace `dev.tfvars` with `staging.tfvars` or `prod.tfvars` as needed.

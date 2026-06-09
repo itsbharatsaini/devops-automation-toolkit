@@ -12,7 +12,7 @@ locals {
   # Common tags applied to all resources
   common_tags = {
     Environment = local.env
-    Project     = "velero"
+    Project     = "Project_Name"
     ManagedBy   = "terraform"
   }
 }

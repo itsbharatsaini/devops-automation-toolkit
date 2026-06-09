@@ -35,6 +35,7 @@ variable "account_id" {
 variable "backup_role_arn" {
   description = "AWS Backup IAM role ARN"
   type        = string
+  default = ""
 }
 
 variable "backup_schedule" {
@@ -54,3 +55,13 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "enable_dr_replication" {
+  type = bool 
+  default = false 
+  }
+
+variable "dr_region" { 
+  type = string 
+  default = "" 
+  }

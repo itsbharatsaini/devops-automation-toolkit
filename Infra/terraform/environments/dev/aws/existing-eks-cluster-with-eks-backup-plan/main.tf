@@ -1,3 +1,14 @@
+module "aws_backup_role" {
+  source = "../../../../modules/aws/iam/aws-backup-role"
+
+  environment  = var.environment
+  project_name = var.project_name
+
+  cluster_name = var.cluster_name
+
+  tags = var.tags
+}
+
 module "dev_existing_eks_cluster_with_eks_backup_plan" {
   source = "../../../../../solutions/aws/existing-eks-cluster-with-eks-backup-plan"
 
@@ -16,4 +27,11 @@ module "dev_existing_eks_cluster_with_eks_backup_plan" {
   delete_after_days = var.delete_after_days
 
   tags = var.tags
+
+  enable_dr_replication = var.enable_dr_replication
+  dr_region             = var.dr_region
+#  providers = { 
+#    aws = aws 
+#    aws.dr = aws.dr 
+#    }
 }

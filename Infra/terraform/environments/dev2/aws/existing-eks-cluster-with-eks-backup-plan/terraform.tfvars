@@ -1,14 +1,14 @@
-aws_region = "ap-south-1"
+aws_region = "us-west-2"
 
 environment  = "dev"
-project_name = "platform"
+project_name = "Testing_backuplan"
 
 # Option 1 - Full EKS Cluster ARN
 eks_cluster_arn = ""
 
 # Option 2 - Cluster Name + Region
 cluster_name   = "dev-eks"
-cluster_region = "ap-south-1"
+cluster_region = "us-west-2"
 
 # Optional - Required only for cross-account setup
 account_id = ""

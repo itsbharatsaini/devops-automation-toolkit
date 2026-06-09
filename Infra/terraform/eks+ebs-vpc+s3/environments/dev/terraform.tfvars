@@ -8,7 +8,7 @@ region = "us-east-1"
 
 # ── Kubernetes Cluster Configuration ───────────────────────────────────────────
 kubernetes_version  = "1.35"
-admin_principal_arn = ""  # ⚠️ REQUIRED: Set to your IAM user/role ARN
+admin_principal_arn = "arn:aws:iam::6XXXXXXXXXX9:user/user_name"  # ⚠️ REQUIRED: Set to your IAM user/role ARN
 allowed_public_cidrs = ["0.0.0.0/0"]
 
 # ── Node Group Configuration ───────────────────────────────────────────────────

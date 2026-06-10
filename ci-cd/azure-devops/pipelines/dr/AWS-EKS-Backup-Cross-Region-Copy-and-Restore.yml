@@ -227,6 +227,7 @@ stages:
             --output text)
           echo "AWS BACKUP SERVICE ROLE ARN: $AWS_BACKUP_SERVICE_ROLE_ARN"
 
+          CLUSTER_NAMESPACES=$(jq -c tostring <<< '$(DESTINATION_EKS_CLUSTER_NAMESPACES)')
           echo "Metadata for Restore:"
           cat > metadata.json <<EOF
           {
@@ -234,7 +235,7 @@ stages:
             "newCluster": "false",
             "restoreKubernetesManifestsOnly": "true",
             "namespaceLevelRestore": "true",
-            "namespaces": "$(DESTINATION_EKS_CLUSTER_NAMESPACES)"
+            "namespaces": $CLUSTER_NAMESPACES
           }
           EOF
           cat metadata.json

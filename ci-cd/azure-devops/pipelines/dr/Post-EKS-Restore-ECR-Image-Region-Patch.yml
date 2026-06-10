@@ -1,0 +1,91 @@
+trigger: none
+
+pool:
+  vmImage: ubuntu-latest
+
+parameters:
+- name: SOURCE_AWS_REGION
+  displayName: Source AWS Region
+  type: string
+  default: us-west-2
+
+- name: DESTINATION_AWS_REGION
+  displayName: Destination AWS Region
+  type: string
+  default: us-east-2
+
+- name: DESTINATION_EKS_CLUSTER_NAME
+  displayName: Destination EKS Cluster Name
+  type: string
+  default: dev-eks
+
+- name: DESTINATION_EKS_CLUSTER_NAMESPACES
+  displayName: Destination EKS Cluster Namespaces
+  type: array
+  default: ["dev", "staging"]
+
+variables:
+  SOURCE_AWS_REGION: ${{ parameters.SOURCE_AWS_REGION }}
+  DESTINATION_AWS_REGION: ${{ parameters.DESTINATION_AWS_REGION }}
+  DESTINATION_EKS_CLUSTER_NAME: ${{ parameters.DESTINATION_EKS_CLUSTER_NAME }}
+  DESTINATION_EKS_CLUSTER_NAMESPACES: ${{ parameters.DESTINATION_EKS_CLUSTER_NAMESPACES }}
+
+variables:
+  - group: DR-Automation-Variables
+
+steps:
+- task: AWSShellScript@1
+  displayName: Set kubectl Context for Destination EKS
+  inputs:
+    awsCredentials: 'AWS-ServiceConnection'
+    regionName: '$(DESTINATION_AWS_REGION)'
+    scriptType: inline
+    inlineScript: |
+      aws eks update-kubeconfig \
+        --name $(DESTINATION_EKS_CLUSTER_NAME) \
+        --region $(DESTINATION_AWS_REGION)
+  continueOnError: false
+
+- task: KubectlInstaller@0
+  inputs:
+    kubectlVersion: latest
+
+- script: |
+    set -euo pipefail
+
+    for NAMESPACE in $(echo '$(DESTINATION_EKS_CLUSTER_NAMESPACES)' | jq -r '.[]')
+    do
+
+      echo "#############################################"
+      echo "Processing Namespace : $NAMESPACE"
+      echo "#############################################"
+
+      kubectl get deploy -n "$NAMESPACE" -o json | jq -r '
+      .items[] |
+      .metadata.name as $deploy |
+      .spec.template.spec.containers[] |
+      [
+        $deploy,
+        .name,
+        .image,
+        (.image | sub("$(SOURCE_AWS_REGION)";"$(DESTINATION_AWS_REGION)"))
+      ] | @tsv
+      ' | while IFS=$'\t' read -r DEPLOY CONTAINER IMAGE NEW_IMAGE
+      do
+
+        echo "================================================"
+        echo "Namespace  : $NAMESPACE"
+        echo "Deployment : $DEPLOY"
+        echo "Container  : $CONTAINER"
+        echo "Current    : $IMAGE"
+        echo "New        : $NEW_IMAGE"
+
+        kubectl set image deployment/"$DEPLOY" \
+          "$CONTAINER=$NEW_IMAGE" \
+          -n "$NAMESPACE"
+
+      done
+
+    done
+  displayName: 'Update Deployment Images Region'
+  continueOnError: false

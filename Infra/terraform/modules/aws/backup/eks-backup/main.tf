@@ -29,6 +29,22 @@ resource "aws_backup_vault" "eks_backup_vault" {
   )
 }
 
+resource "aws_backup_vault" "eks_backup_vault_dr" {
+  count = var.enable_dr_replication ? 1 : 0
+  provider = aws.dr
+  name = "${var.environment}-eks-backup-vault-dr"
+
+  tags = merge(
+    var.tags,
+    {
+      Project     = var.project_name
+      Environment = var.environment
+      ManagedBy   = "Terraform"
+      DR          = "true"
+    }
+  )
+}
+
 resource "aws_backup_plan" "eks_backup_plan" {
   name = "${var.environment}-eks-backup-plan"
 
@@ -40,6 +56,19 @@ resource "aws_backup_plan" "eks_backup_plan" {
     lifecycle {
       delete_after = var.delete_after_days
     }
+
+    dynamic "copy_action" {
+      for_each = var.enable_dr_replication ? [1] : []
+
+      content {
+        destination_vault_arn = aws_backup_vault.eks_backup_vault_dr[0].arn
+
+        lifecycle {
+          delete_after = var.delete_after_days
+        }
+      }
+    }
+
 
     recovery_point_tags = merge(
       var.tags,

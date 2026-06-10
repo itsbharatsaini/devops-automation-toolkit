@@ -59,3 +59,13 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "enable_dr_replication" {
+  type = bool 
+  default = false 
+  }
+
+variable "dr_region" { 
+  type = string 
+  default = "" 
+  }

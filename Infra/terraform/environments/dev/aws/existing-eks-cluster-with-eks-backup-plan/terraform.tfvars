@@ -1,4 +1,4 @@
-aws_region = "ap-south-1"
+aws_region = "us-west-2"
 
 environment  = "dev"
 project_name = "platform"
@@ -8,7 +8,7 @@ eks_cluster_arn = ""
 
 # Option 2 - Cluster Name + Region
 cluster_name   = "dev-eks"
-cluster_region = "ap-south-1"
+cluster_region = "us-west-2"
 
 # Optional - Required only for cross-account setup
 account_id = ""
@@ -23,3 +23,6 @@ tags = {
   Team        = "Platform"
   ManagedBy   = "Terraform"
 }
+
+enable_dr_replication = true 
+dr_region             = "us-east-2"

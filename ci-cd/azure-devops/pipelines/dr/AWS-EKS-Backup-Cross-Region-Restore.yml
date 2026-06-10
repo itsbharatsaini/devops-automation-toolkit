@@ -19,16 +19,16 @@ parameters:
   type: string
   default: dev-eks
 
-- name: DESTINATION_EKS_CLUSTER_NAMESPACE
-  displayName: Destination EKS Cluster Namespace
-  type: string
-  default: dev
+- name: DESTINATION_EKS_CLUSTER_NAMESPACES
+  displayName: Destination EKS Cluster Namespaces
+  type: array
+  default: ["dev", "staging"]
 
 variables:
   DESTINATION_AWS_REGION: ${{ parameters.DESTINATION_AWS_REGION }}
   DESTINATION_BACKUP_VAULT_NAME: ${{ parameters.DESTINATION_BACKUP_VAULT_NAME }}
   DESTINATION_EKS_CLUSTER_NAME: ${{ parameters.DESTINATION_EKS_CLUSTER_NAME }}
-  DESTINATION_EKS_CLUSTER_NAMESPACE: ${{ parameters.DESTINATION_EKS_CLUSTER_NAMESPACE }}
+  DESTINATION_EKS_CLUSTER_NAMESPACES: ${{ parameters.DESTINATION_EKS_CLUSTER_NAMESPACES }}
 
 # variables:
 #   - group: DR-Automation-Variables
@@ -84,7 +84,7 @@ stages:
             "newCluster": "false",
             "restoreKubernetesManifestsOnly": "true",
             "namespaceLevelRestore": "true",
-            "namespaces": "[\"$(DESTINATION_EKS_CLUSTER_NAMESPACE)\"]"
+            "namespaces": "$(DESTINATION_EKS_CLUSTER_NAMESPACES)"
           }
           EOF
           cat metadata.json
